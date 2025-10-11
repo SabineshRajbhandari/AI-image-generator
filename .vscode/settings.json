@@ -4,5 +4,9 @@
         "prompthero",
         "runwayml",
         "stabilityai"
+
+    ],
+    "cSpell.ignoreWords": [
+        "key"
     ]
 }

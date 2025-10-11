@@ -48,36 +48,74 @@ const toggleTheme = () => {
 };
 
 const generateImages = async (selectedModel, imageCount, aspectRatio, promptText) => {
-const MODEL_URL = `https://router.huggingface.co/nscale/v1/images/generations/${selectedModel}`;
 
-try {
-const response = await fetch(MODEL_URL, {
-    headers: {
-				Authorization: `Bearer ${({}).HF_TOKEN}`,
-				"Content-Type": "application/json",
-			},
-			method: "POST",
-			body: JSON.stringify(data),
-});
+  // Hugging Face API endpoint for the model
+  const MODEL_URL = `https://api-inference.huggingface.co/models/${selectedModel}`;
+  const HF_TOKEN = "key"; // Your API key and add it to settings.json cspell.ignoreWords
 
-const result = await response.blob();
+  try {
+    // Generate images one by one
+    for (let i = 0; i < imageCount; i++) {
+      const cardElement = document.querySelector(`#img-card-${i}`);
+      
+      try {
+        const response = await fetch(MODEL_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${HF_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            inputs: promptText,
+          }),
+        });
 
-} catch (error) {
-  console.error("Error generating images:", error);   
-}
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
 
+        // Get the image as blob
+        const imageBlob = await response.blob();
+        const imageUrl = URL.createObjectURL(imageBlob);
+
+        // Update the card with the generated image
+        const imgElement = cardElement.querySelector(".result-img");
+        imgElement.src = imageUrl;
+        imgElement.onload = () => {
+          cardElement.classList.remove("loading");
+          cardElement.querySelector(".status-text").textContent = "Image generated!";
+        };
+
+      } catch (error) {
+        console.error(`Error generating image ${i + 1}:`, error);
+        cardElement.classList.add("error");
+        cardElement.querySelector(".status-text").textContent = "Failed to generate image";
+      }
+    }
+  } catch (error) {
+    console.error("Error generating images:", error);
+  }
+};
 // Create placeholder image cards with loading spinners
 const createImageCards = (selectedModel, imageCount, aspectRatio, promptText) => {
     gridGallery.innerHTML = ""; // Clear existing images
 
     for (let i = 0; i < imageCount; i++) {
-        gridGallery.innerHTML += `<div class="img-card loading" id = "img-card-${i}" style="aspect-ratio: ${aspectRatio}">
-                <div class="spinner"></div>
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <p class="status-text">Generating...</p>
-              </div>
-              <img src="test.png" class="result-img" />
-            </div>`;
+
+        gridGallery.innerHTML += `<div class="img-card loading" id="img-card-${i}" style="aspect-ratio: ${aspectRatio}">
+                <div class="status-container">
+                  <div class="spinner"></div>
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <p class="status-text">Generating...</p>
+                </div>
+                <img src="" class="result-img" />
+                <div class="img-overlay">
+                  <button class="img-download-btn" onclick="downloadImage(this)">
+                    <i class="fa-solid fa-download"></i>
+                  </button>
+                </div>
+              </div>`;
     }
 
     generateImages(selectedModel, imageCount, aspectRatio, promptText);
@@ -103,6 +141,21 @@ promptBtn.addEventListener("click", () => {
   promptInput.value = prompt;
   promptInput.focus();
 });
+
+
+// Download image function
+const downloadImage = (button) => {
+  const imgCard = button.closest('.img-card');
+  const imgElement = imgCard.querySelector('.result-img');
+  const imgSrc = imgElement.src;
+  
+  if (imgSrc && imgSrc !== '') {
+    const link = document.createElement('a');
+    link.href = imgSrc;
+    link.download = `ai-generated-image-${Date.now()}.png`;
+    link.click();
+  }
+};
 
 promptForm.addEventListener("submit", handleFormSubmit);
 themeToggle.addEventListener("click", toggleTheme);
